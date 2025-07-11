@@ -1,0 +1,27 @@
+🎯 Circle Clicker – 2 Player HTML Game
+A fun and fast-paced two-player browser game where you click on popping circles to earn points! Hit the circle to score, miss and lose a point. Compete in two back-to-back rounds and see who comes out on top!
+
+🔹 Features:
+🔔 Sound effect on successful clicks
+
+❌ Penalty for missed clicks
+
+👥 2-player turn-based gameplay
+
+⏱️ 30-second rounds per player
+
+🎨 Colorful, animated targets
+
+💻 Playable in any modern browser (desktop or mobile)
+
+▶️ How to Play
+Open index.html in a browser
+
+Click Start Game
+
+Player 1 plays for 30 seconds
+
+Player 2 plays right after
+
+The winner is announced!
+

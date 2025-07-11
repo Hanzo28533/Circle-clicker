@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Circle Clicker – 2‑Player Edition</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: sans-serif;
+        background: #222;
+        color: #fff;
+      }
+      #gameCanvas {
+        background: #111;
+        border: 4px solid #fff;
+        border-radius: 10px;
+        margin-top: 20px;
+      }
+      button {
+        margin-top: 20px;
+        padding: 10px 24px;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      h1 {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Circle Clicker – 2‑Player</h1>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <button id="startBtn">Start Game</button>
+
+    <script>
+      // ==== Canvas / DOM references ====
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const startBtn = document.getElementById("startBtn");
+
+      // ==== Audio (simple bell) ====
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      function playHitSound() {
+        const osc = audioCtx.createOscillator();
+        osc.frequency.value = 880; // A5 tone – bell‑ish
+        osc.type = "sine";
+        osc.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12); // 120 ms blip
+      }
+
+      // ==== Game state ====
+      let circles = [];
+      let score = 0;
+      let gameTime = 30; // seconds for each player
+      let gameInterval, spawnInterval, timerInterval;
+
+      const playerScores = [0, 0];
+      let currentPlayer = 0; // 0 ➜ Player 1, 1 ➜ Player 2
+
+      // ==== Helpers ====
+      function spawnCircle() {
+        const radius = 15 + Math.random() * 20;
+        const x = radius + Math.random() * (canvas.width - 2 * radius);
+        const y = radius + Math.random() * (canvas.height - 2 * radius);
+        const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+        circles.push({ x, y, radius, color, life: 1000 }); // life in ms
+      }
+
+      function updateGame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw circles & age them
+        for (let i = circles.length - 1; i >= 0; i--) {
+          const c = circles[i];
+          c.life -= 16;
+          if (c.life <= 0) {
+            circles.splice(i, 1);
+            continue;
+          }
+          ctx.beginPath();
+          ctx.fillStyle = c.color;
+          ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // HUD
+        ctx.fillStyle = "#fff";
+        ctx.font = "16px monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(`Player: ${currentPlayer + 1}`, 10, 20);
+        ctx.fillText(`Score: ${score}`, 10, 40);
+        ctx.textAlign = "right";
+        ctx.fillText(`Time: ${gameTime}s`, canvas.width - 10, 20);
+      }
+
+      function startRound() {
+        score = 0;
+        gameTime = 30;
+        circles = [];
+
+        spawnCircle();
+        spawnInterval = setInterval(spawnCircle, 1000);
+        gameInterval = setInterval(updateGame, 16);
+        timerInterval = setInterval(() => {
+          gameTime--;
+          if (gameTime <= 0) endRound();
+        }, 1000);
+
+        startBtn.disabled = true;
+        startBtn.textContent = `Player ${currentPlayer + 1} playing…`;
+      }
+
+      function endRound() {
+        clearInterval(gameInterval);
+        clearInterval(spawnInterval);
+        clearInterval(timerInterval);
+
+        playerScores[currentPlayer] = score;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.font = "24px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          `Player ${currentPlayer + 1} Score: ${score}`,
+          canvas.width / 2,
+          canvas.height / 2 - 20
+        );
+
+        // Prepare next player or show final results
+        if (currentPlayer === 0) {
+          currentPlayer = 1;
+          ctx.font = "18px monospace";
+          ctx.fillText(
+            "Player 2 starts in 3 seconds…",
+            canvas.width / 2,
+            canvas.height / 2 + 20
+          );
+          setTimeout(startRound, 3000);
+        } else {
+          displayFinalResults();
+        }
+      }
+
+      function displayFinalResults() {
+        const [p1, p2] = playerScores;
+        const winner = p1 === p2 ? "It's a tie!" : p1 > p2 ? "Player 1 wins!" : "Player 2 wins!";
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#fff";
+        ctx.font = "22px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`Final Scores`, canvas.width / 2, canvas.height / 2 - 40);
+        ctx.font = "18px monospace";
+        ctx.fillText(`Player 1: ${p1}`, canvas.width / 2, canvas.height / 2 - 10);
+        ctx.fillText(`Player 2: ${p2}`, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.font = "20px monospace";
+        ctx.fillText(winner, canvas.width / 2, canvas.height / 2 + 60);
+
+        startBtn.disabled = false;
+        startBtn.textContent = "Play Again";
+        currentPlayer = 0; // reset for next game
+      }
+
+      // ==== Event listeners ====
+      canvas.addEventListener("click", function (e) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        let hit = false;
+        for (let i = circles.length - 1; i >= 0; i--) {
+          const c = circles[i];
+          const dx = mouseX - c.x;
+          const dy = mouseY - c.y;
+          if (dx * dx + dy * dy <= c.radius * c.radius) {
+            // Hit!
+            score++;
+            circles.splice(i, 1);
+            playHitSound();
+            hit = true;
+            break;
+          }
+        }
+
+        if (!hit) {
+          // Miss – minus point (min 0)
+          score = Math.max(0, score - 1);
+        }
+      });
+
+      startBtn.addEventListener("click", () => {
+        playerScores[0] = playerScores[1] = 0; // reset previous scores
+        currentPlayer = 0;
+        startRound();
+      });
+    </script>
+  </body>
+</html>
